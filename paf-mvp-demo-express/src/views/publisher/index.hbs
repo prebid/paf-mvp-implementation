@@ -43,15 +43,7 @@
                         sizes: div_1_sizes
                     }
                 },
-                bids: [{
-                    bidder: 'openx2',
-                    params: {
-                        delDomain: 'sademo-d.openx.net',
-                        unit: '540096529',
-                        test: true,
-                        customFloor: 0.01
-                    }
-                },
+                bids: [
                 {
                     bidder: 'criteo',
                     params: {
@@ -67,14 +59,6 @@
                     }
                 },
                 bids: [{
-                    bidder: 'openx2',
-                    params: {
-                        delDomain: 'sademo-d.openx.net',
-                        unit: '540096529',
-                        test: true
-                    }
-                },
-                {
                     bidder: 'criteo',
                     params: {
                         zoneId: 1661192
@@ -119,7 +103,7 @@
                     auctionDelay: 1000,
                     dataProviders: [
                             {
-                            name: "paf",
+                            name: "oneKey",
                             waitForIt: true,
                             params: {proxyHostName: "{{pafNodeHost}}" }
                         }
@@ -127,8 +111,8 @@
                 },
                 userSync: {
                     userIds: [{
-                        name: "pafData",
-                        params: {}
+                        name: "oneKeyData",
+                        params: { proxyHostName: "{{pafNodeHost}}" }
                     }],
                     auctionDelay: 1000,
                     syncDelay: 3000

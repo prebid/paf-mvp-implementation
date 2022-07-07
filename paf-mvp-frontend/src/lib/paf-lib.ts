@@ -165,6 +165,10 @@ export type SignPrefsOptions = Options;
 
 export type GetNewIdOptions = Options;
 
+export interface GetIdAndPreferencesAsyncOption extends RefreshIdsAndPrefsOptions {
+  callback?: (result: IdsAndPreferences | undefined) => void;
+}
+
 export interface GenerateSeedOptions extends Options {
   callback?: (seed: Seed) => void;
 }
@@ -264,6 +268,31 @@ async function updateDataWithPrompt(
 
 const getCleanCookieValue = (cookieValue: string): string | undefined =>
   cookieValue === PafStatus.NOT_PARTICIPATING || cookieValue === PafStatus.REDIRECT_NEEDED ? undefined : cookieValue;
+
+/**
+ * Sync Ids and Preferences if needed, cache it and return it.
+ */
+export const getIdsAndPreferencesAsync = async (
+  options: GetIdAndPreferencesAsyncOption
+): Promise<IdsAndPreferences | undefined> => {
+  try {
+    let data = getIdsAndPreferences();
+
+    // If data is not available locally, refresh from the operator
+    if (data === undefined) {
+      const refreshed = await refreshIdsAndPreferences(options);
+      if (refreshed.status === PafStatus.PARTICIPATING) {
+        data = refreshed.data as IdsAndPreferences;
+      }
+    }
+
+    options.callback?.(data);
+    return data;
+  } catch (error) {
+    options.callback?.(undefined);
+    throw error;
+  }
+};
 
 /**
  * Parse string cookie values and build an IdsAndOptionalPreferences accordingly
@@ -634,9 +663,11 @@ export const getNewId = async ({ proxyHostName }: GetNewIdOptions): Promise<Iden
  * Otherwise, return undefined
  */
 export const getIdsAndPreferences = (): IdsAndPreferences | undefined => {
+  // If "last refresh" cookie is not present, consider the local ids and preferences are out of date => undefined
   if (!getCookieValue(Cookies.lastRefresh)) {
     return undefined;
   }
+
   // Remove special string values
   const cleanCookieValue = (rawValue: string) =>
     rawValue === PafStatus.REDIRECT_NEEDED || rawValue === PafStatus.NOT_PARTICIPATING ? undefined : rawValue;
