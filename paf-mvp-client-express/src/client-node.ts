@@ -10,6 +10,7 @@ import {
   PostSeedRequest,
   PostSeedResponse,
   PostSignPreferencesRequest,
+  ProxyPostIdsPrefsResponse,
   RedirectGetIdsPrefsResponse,
 } from '@core/model';
 import { jsonProxyEndpoints, proxyUriParams, redirectProxyEndpoints } from '@core/endpoints';
@@ -176,10 +177,20 @@ export class ClientNode implements Node {
       checkOrigin(jsonProxyEndpoints.write),
       (req, res) => {
         logger.Info(jsonProxyEndpoints.write);
-
         try {
+          const unsignedRequest = getPayload<IdsAndPreferences>(req);
+          const signedPayload = postIdsPrefsRequestBuilder.buildRestRequest(
+            { origin: req.header('origin') },
+            unsignedRequest
+          );
+
           const url = postIdsPrefsRequestBuilder.getRestUrl();
-          res.send(url.toString());
+          // Return both the signed payload and the url to call
+          const response: ProxyPostIdsPrefsResponse = {
+            payload: signedPayload,
+            url: url.toString(),
+          };
+          res.json(response);
         } catch (e) {
           logger.Error(jsonProxyEndpoints.write, e);
           const error: ClientNodeError = {
@@ -438,27 +449,9 @@ export class ClientNode implements Node {
       }
     );
 
-    app.expressApp.post(
-      jsonProxyEndpoints.signWrite,
-      cors(corsOptions),
-      checkOrigin(jsonProxyEndpoints.signWrite),
-      (req, res) => {
-        logger.Info(jsonProxyEndpoints.signWrite);
-        try {
-          const message = getPayload<IdsAndPreferences>(req);
-          res.json(postIdsPrefsRequestBuilder.buildRestRequest({ origin: req.header('origin') }, message));
-        } catch (e) {
-          logger.Error(jsonProxyEndpoints.signWrite, e);
-          // FIXME finer error return
-          const error: ClientNodeError = {
-            type: ClientNodeErrorType.UNKNOWN_ERROR,
-            details: '',
-          };
-          res.status(400);
-          res.json(error);
-        }
-      }
-    );
+    // *****************************************************************************************************************
+    // ***************************************************************************************************** JSON - SEED
+    // *****************************************************************************************************************
 
     app.expressApp.post(
       jsonProxyEndpoints.createSeed,

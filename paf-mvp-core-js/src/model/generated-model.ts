@@ -37,7 +37,7 @@ export type TransmissionReceiver = string;
  */
 export type TransmissionContentId = string;
 /**
- * List of pairs of one content_id and one transaction_id. It is possible to have one content_id (i.e same content) for N transaction_ids (i.e N placements). In this case, there would be N pairs of 'contents'.
+ * List of pairs of one content_id and one transaction_id. It is possible to have many content_ids for one transaction_ids. In this case, there would be N pairs of 'contents'.
  */
 export type TransmissionContents = {
   content_id: TransmissionContentId;
@@ -104,6 +104,7 @@ export interface _ {
   'post-sign-preferences-request'?: PostSignPreferencesRequest;
   'preferences-data'?: PreferencesData;
   preferences?: Preferences;
+  'proxy-post-ids-prefs-response'?: ProxyPostIdsPrefsResponse;
   'redirect-delete-ids-prefs-request'?: RedirectDeleteIdsPrefsRequest;
   'redirect-delete-ids-prefs-response'?: RedirectDeleteIdsPrefsResponse;
   'redirect-get-ids-prefs-request'?: RedirectGetIdsPrefsRequest;
@@ -115,6 +116,8 @@ export interface _ {
   seed?: Seed;
   signature?: Signature;
   source?: Source;
+  'standalone-bid-request'?: StandaloneBidRequest;
+  'standalone-bid-response'?: StandaloneBidResponse;
   'test-3pc'?: Test3Pc;
   timestamp?: Timestamp;
   transaction_id?: TransactionId;
@@ -138,6 +141,9 @@ export interface AuditLog {
   data: IdsAndPreferences;
   seed: Seed;
   transaction_id: TransactionId;
+  /**
+   * The list of Transmission Results that participated to the generation of the content. This list is chronologically ordered.
+   */
   transmissions: TransmissionResult[];
 }
 /**
@@ -270,11 +276,11 @@ export interface GetIdentityResponse {
   type: 'vendor' | 'operator';
   version: Version;
   /**
-   * Email address to contact the company
+   * Email address to contact the contracting party
    */
   dpo_email: string;
   /**
-   * URL of the recipient's privacy policy
+   * URL of the privacy policy of the contracting party
    */
   privacy_policy_url: string;
   /**
@@ -359,6 +365,7 @@ export interface OpenRtbBidRequest {
         };
       };
     };
+    [k: string]: unknown | undefined;
   }[];
   user: {
     /**
@@ -369,6 +376,10 @@ export interface OpenRtbBidRequest {
         source: string;
         uids: {
           /**
+           * Equals 'paf'. eids spec: Source or technology provider responsible for the set of included IDs. Expressed as a top-level domain.
+           */
+          source: string;
+          /**
            * Equal to 1 for the element of PAF Data.
            * Type of user agent the match is from. It is highly recommended to set this, as many DSPs separate app-native IDs from browser-based IDs and require a type value for ID resolution.
            */
@@ -378,6 +389,17 @@ export interface OpenRtbBidRequest {
            * Cookie or platform-native identifier.
            */
           id: string;
+          /**
+           * Placeholder for exchange-specific extensions to OpenRTB.
+           */
+          ext?: {
+            version: Version;
+            /**
+             * Equals 'paf_browser_id'
+             */
+            type: string;
+            source: Source;
+          };
         }[];
         /**
          * Placeholder for exchange-specific extensions to OpenRTB.
@@ -394,13 +416,12 @@ export interface OpenRtbBidRequest {
          * Object dedicated to PAF transmission
          */
         transmission: {
-          version: Version;
           seed: Seed;
-          source: Source;
-          parents: TransmissionResult[];
+          parents?: TransmissionResult[];
         };
       };
     };
+    [k: string]: unknown | undefined;
   };
 }
 /**
@@ -422,6 +443,7 @@ export interface OpenRtbBidResponse {
    * Represents a specific seat that provides at least one bid.
    */
   seatbid: {
+    seat?: string;
     /**
      * A bid for an impression.
      */
@@ -437,6 +459,7 @@ export interface OpenRtbBidResponse {
           content_id: TransmissionContentId;
         };
       };
+      [k: string]: unknown | undefined;
     }[];
   }[];
 }
@@ -500,6 +523,16 @@ export interface UnsignedPreferences {
   data: PreferencesData;
 }
 /**
+ * POST /paf-proxy/v1/ids-prefs response
+ */
+export interface ProxyPostIdsPrefsResponse {
+  /**
+   * To URL to call on the operator
+   */
+  url: string;
+  payload: PostIdsPrefsRequest;
+}
+/**
  * GET /v1/redirect/delete-ids-prefs request
  */
 export interface RedirectDeleteIdsPrefsRequest {
@@ -545,21 +578,29 @@ export interface RedirectPostIdsPrefsResponse {
   error?: Error;
 }
 /**
+ * A non-Open RTB Bid Request (with custom format) that includes a Transmission Request in standalone
+ */
+export interface StandaloneBidRequest {
+  paf_transmission?: TransmissionRequest;
+  [k: string]: unknown | undefined;
+}
+/**
  * The request sent from a Sender to a Receiver for sharing PAF data for a set of Addressable Content
  */
 export interface TransmissionRequest {
-  version: Version;
   seed: Seed;
   data: IdsAndPreferences;
-  receiver?: TransmissionReceiver;
-  status?: TransmissionStatus;
-  details?: TransmissionDetails;
-  contents?: TransmissionContents;
-  source?: Source;
   /**
-   * The list of Transmission Result before this Transmission Request for the given Seed.
+   * The list of Transmission Results representing the path of in-progress Transmissions for generating this Transmission Request. This list is chronologically ordered.
    */
   parents?: TransmissionResult[];
+}
+/**
+ * A non-Open RTB Bid Request (with custom format) that includes a Transmission Response in standalone
+ */
+export interface StandaloneBidResponse {
+  paf_transmission?: TransmissionResponse;
+  [k: string]: unknown | undefined;
 }
 /**
  * A response in an custom communication for acknowledging the use (or not) of PAF data between two Contracting Parties for many Addressable Contents

@@ -8,11 +8,11 @@ import {
   GetNewIdResponse,
   Identifier,
   Identifiers,
-  IdsAndPreferences,
   PostIdsPrefsRequest,
   PostIdsPrefsResponse,
   PostSignPreferencesRequest,
   Preferences,
+  ProxyPostIdsPrefsResponse,
   RedirectGetIdsPrefsRequest,
   RedirectGetIdsPrefsResponse,
   RedirectPostIdsPrefsRequest,
@@ -38,7 +38,6 @@ import {
 import { Schema, Validator } from 'jsonschema';
 import * as fs from 'fs';
 import {
-  ProxyRestSignPostIdsPrefsRequestBuilder,
   ProxyRestSignPreferencesRequestBuilder,
   ProxyRestVerifyGetIdsPrefsRequestBuilder,
 } from '@core/model/proxy-request-builders';
@@ -161,8 +160,7 @@ class Examples {
   // **************************** Proxy
   signPreferencesHttp: string;
   signPreferencesJson: PostSignPreferencesRequest = undefined;
-  signPostIdsPrefsHttp: string;
-  signPostIdsPrefsJson: IdsAndPreferences = undefined;
+  proxyPostIdsPrefsResponseJson: ProxyPostIdsPrefsResponse = undefined;
   verifyGetIdsPrefsHttp: string;
   verifyGetIdsPrefs_invalidJson: Error = undefined;
 
@@ -292,17 +290,15 @@ class Examples {
       crtoOneOperatorConfig.host,
       clientNodePrivateKey
     );
-    this.setRestMessage(
-      'postIdsPrefsRequestJson',
-      postIdsPrefsRequestBuilder.buildRestRequest(
-        { origin: originalAdvertiserUrl.toString() },
-        {
-          identifiers: [this.idJson],
-          preferences: this.preferencesJson,
-        },
-        getTimestamp('2022/01/25 09:01')
-      )
+    const postIdsPrefsRequest = postIdsPrefsRequestBuilder.buildRestRequest(
+      { origin: originalAdvertiserUrl.toString() },
+      {
+        identifiers: [this.idJson],
+        preferences: this.preferencesJson,
+      },
+      getTimestamp('2022/01/25 09:01')
     );
+    this.setRestMessage('postIdsPrefsRequestJson', postIdsPrefsRequest);
     this.postIdsPrefsRequestHttp = getPOSTUrl(postIdsPrefsRequestBuilder.getRestUrl()); // Notice is POST url
     this.setRestMessage(
       'postIdsPrefsResponseJson',
@@ -402,9 +398,10 @@ class Examples {
       use_browsing_for_personalization: true,
     });
 
-    const signPostIdsPrefsRequestBuilder = new ProxyRestSignPostIdsPrefsRequestBuilder(publisherHost);
-    this.signPostIdsPrefsHttp = getPOSTUrl(signPostIdsPrefsRequestBuilder.getRestUrl(undefined)); // Notice is POST url
-    this.signPostIdsPrefsJson = signPostIdsPrefsRequestBuilder.buildRequest([this.idJson], this.preferencesJson);
+    this.proxyPostIdsPrefsResponseJson = {
+      url: postIdsPrefsRequestBuilder.getRestUrl().toString(),
+      payload: postIdsPrefsRequest,
+    };
 
     const verifyGetIdsPrefsRequestBuilder = new ProxyRestVerifyGetIdsPrefsRequestBuilder(publisherHost);
     this.verifyGetIdsPrefsHttp = getPOSTUrl(verifyGetIdsPrefsRequestBuilder.getRestUrl(undefined)); // Notice is POST url

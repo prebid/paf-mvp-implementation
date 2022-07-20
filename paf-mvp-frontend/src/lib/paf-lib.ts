@@ -563,16 +563,11 @@ export class OneKeyLib implements IOneKeyLib {
       if (this.thirdPartyCookiesSupported) {
         this.log.Info('3PC supported');
 
-        // 1) sign the request
-        const signedResponse = await this.postJson(this.getProxyUrl(jsonProxyEndpoints.signWrite), input);
-        const signedData = (await signedResponse.json()) as PostIdsPrefsRequest;
-
-        // 2) send
-        // TODO in fact, this post endpoint should take the unsigned input, sign it and return both the signed input and the url to call
-        const clientResponse = await this.postText(this.getProxyUrl(jsonProxyEndpoints.write), '');
+        // Sign the request and get operator URL to call
+        const clientResponse = await this.postJson(this.getProxyUrl(jsonProxyEndpoints.write), input);
         // TODO handle errors
-        const operatorUrl = await clientResponse.text();
-        const operatorResponse = await this.postJson(operatorUrl, signedData);
+        const { url, payload } = (await clientResponse.json()) as { url: string; payload: PostIdsPrefsRequest };
+        const operatorResponse = await this.postJson(url, payload);
         const operatorData = (await operatorResponse.json()) as GetIdsPrefsResponse;
 
         const persistedIds = operatorData?.body?.identifiers?.filter((identifier) => identifier?.persisted !== false);

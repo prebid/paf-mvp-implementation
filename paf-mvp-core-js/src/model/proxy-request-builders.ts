@@ -1,11 +1,4 @@
-import {
-  GetIdsPrefsResponse,
-  Identifiers,
-  IdsAndPreferences,
-  PostSignPreferencesRequest,
-  Preferences,
-  PreferencesData,
-} from './generated-model';
+import { GetIdsPrefsResponse, Identifiers, PostSignPreferencesRequest, PreferencesData } from './generated-model';
 import { jsonProxyEndpoints } from '../endpoints';
 import { setInQueryString } from '../express/utils';
 
@@ -39,19 +32,6 @@ export class ProxyRestSignPreferencesRequestBuilder extends ProxyRestRequestBuil
         version: '0.1',
         data,
       },
-    };
-  }
-}
-
-export class ProxyRestSignPostIdsPrefsRequestBuilder extends ProxyRestRequestBuilder<IdsAndPreferences> {
-  constructor(proxyHost: string) {
-    super(proxyHost, jsonProxyEndpoints.signWrite);
-  }
-
-  buildRequest(identifiers: Identifiers, preferences: Preferences): IdsAndPreferences {
-    return {
-      identifiers,
-      preferences,
     };
   }
 }
