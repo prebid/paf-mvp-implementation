@@ -12,13 +12,13 @@ const relative = (path: string) => join(__dirname, path);
 export const keyPath = relative('../paf.key');
 export const crtPath = relative('../paf.crt');
 
-export const isLocalDev = fs.existsSync(keyPath) && fs.existsSync(crtPath);
+export const isRunningOnDeveloperPC = fs.existsSync(keyPath) && fs.existsSync(crtPath);
 
 export let sslOptions: { key: Buffer; cert: Buffer; passphrase: string };
 
 export const s2sOptions: AxiosRequestConfig = {};
 
-if (isLocalDev) {
+if (isRunningOnDeveloperPC) {
   sslOptions = {
     key: readFileSync(keyPath),
     cert: readFileSync(crtPath),

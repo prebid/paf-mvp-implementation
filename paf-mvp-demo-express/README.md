@@ -39,23 +39,16 @@ flowchart TB
 
 The demo is currently made of a set of websites accessible to anyone.
 
-- 3 fake publisher websites:
-  - [PIF publisher](https://www.pifdemopublisher.com/)
-  - [PAF publisher](https://www.pafdemopublisher.com/)
-  - [POF publisher](https://www.pofdemopublisher.com/)
 - 3 fake advertiser websites:
-  - [PIF advertiser](https://www.pifmarket.shop/)
-  - [PAF advertiser](https://www.pafmarket.shop/)
-  - [POF advertiser](https://www.pofmarket.shop/)
-
-Note: all sites can be accessed on the "root url"
-(ex: [https://www.pafdemopublisher.com/](https://www.pafdemopublisher.com/))
-or on any sub-path (ex: [https://www.pafdemopublisher.com/some-page/under-path?with-query-string=something](https://www.pafdemopublisher.com/some-page/under-path?with-query-string=something)).
-All pages will look exactly the same, but this can be the opportunity to test the solution under different circumstances.
-
-What makes a difference between these two types of websites is related to **first visits** and in particular how **unknown users** are handled:
-- publisher websites will ask for consent before anything
-- advertiser websites will only query OneKey: if the user is recognized, preferences are stored and a notification snackbar is displayed. Otherwise, the user is considered opt out.
+    - [PAF advertiser](https://www.pafmarket.shop/)
+    - [POF advertiser](https://www.pofmarket.shop/)
+    - [PIF advertiser](https://www.pifmarket.shop/)
+- advertiser websites only gather user consent
+- 3 fake publisher websites:
+    - [PAF publisher](https://www.pafdemopublisher.com/)
+    - [POF publisher](https://www.pofdemopublisher.com/)
+    - [PIF publisher](https://www.pifdemopublisher.com/)
+- publisher websites trigger **ad display** through PrebidJS
 
 A typical demo scenario would be to:
 - visit a publisher website first, notice the "first visit" UI and **define your marketing preferences**
@@ -67,6 +60,11 @@ A typical demo scenario would be to:
 - wait ONE minute (this is the "refresh frequency" on this demo)
 - refresh a website that has been visited already: the notification snackbar should be displayed
 
+Note: all sites can be accessed on the "root url"
+(ex: [https://www.pafdemopublisher.com/](https://www.pafdemopublisher.com/))
+or on any sub-path (ex: [https://www.pafdemopublisher.com/some-page/under-path?with-query-string=something](https://www.pafdemopublisher.com/some-page/under-path?with-query-string=something)).
+All pages will look exactly the same, but this can be the opportunity to test the solution under different circumstances.
+
 Of course this scenario can be run **with or without support of 3d party cookies** to demonstrate different sync mechanism (JS calls or full-page redirects)
 
 Finally, a "backoffice" [portal](http://portal.onekey.network/) is available to display the current ids and preferences on OneKey domain and easily reset it.
@@ -75,6 +73,10 @@ This component is not meant for end users.
 You might also want to delete the `paf_*` cookies from some websites to simulate a first visit to the website.
 
 ## Local installation
+
+⚠️ While most demo websites rely on OneKey **clients** hosted by the same web server instance,
+PIF publisher and PIF advertiser use OneKey clients hosted by Criteo on another web server instance.
+_When running the demo locally_, these clients are started in the same instance, so the demo is "self-sufficient".
 
 To install and run the demo project locally, follow these instructions:
 

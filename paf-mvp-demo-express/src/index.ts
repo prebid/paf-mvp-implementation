@@ -1,7 +1,7 @@
 import express, { Express } from 'express';
 import { join } from 'path';
 import { createServer } from 'https';
-import { isLocalDev, sslOptions } from './demo-utils';
+import { isRunningOnDeveloperPC, sslOptions } from './demo-utils';
 import { create } from 'express-handlebars';
 import { MainApp, VHostApp } from '@core/express/express-apps';
 import { getAppsAndNodes } from './apps';
@@ -66,7 +66,7 @@ const relative = (dir: string) => join(__dirname, dir);
     for (const app of allApps) {
       console.log(`${app.hostName} (${app.name})`);
     }
-    if (isLocalDev) {
+    if (isRunningOnDeveloperPC) {
       console.log('');
       console.log('Make sure you have added these lines to your /etc/hosts file or equivalent:');
       for (const app of allApps) {
@@ -76,7 +76,7 @@ const relative = (dir: string) => join(__dirname, dir);
   });
 
   // Only start HTTPS on local dev: on prod, the HTTPS layer is handled by a proxy
-  if (isLocalDev) {
+  if (isRunningOnDeveloperPC) {
     console.log('Local dev: starting HTTPs (443) server');
     createServer(sslOptions, mainApp.expressApp).listen(443);
   }

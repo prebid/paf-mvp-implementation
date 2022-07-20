@@ -8,7 +8,7 @@ import { pafMarketCdnApp, pafMarketWebSiteApp } from './websites/paf-market';
 import { pifMarketCdnApp, pifMarketWebSiteApp } from './websites/pif-market';
 import { pofMarketCdnApp, pofMarketWebSiteApp } from './websites/pof-market';
 import { portalWebSiteApp } from './websites/portal';
-import { s2sOptions } from './demo-utils';
+import { isRunningOnDeveloperPC, s2sOptions } from './demo-utils';
 
 export const getAppsAndNodes = async (): Promise<{
   operators: OperatorNode[];
@@ -39,16 +39,24 @@ export const getAppsAndNodes = async (): Promise<{
     await OperatorNode.fromConfig('configs/crto-poc-1-operator/config.json', s2sOptions),
   ];
 
+  const clientConfigFiles = [
+    'configs/pafmarket-client/config.json',
+    'configs/pofmarket-client/config.json',
+    'configs/pafpublisher-client/config.json',
+    'configs/pofpublisher-client/config.json',
+    'configs/portal-client/config.json',
+  ];
+
+  /**
+   * On production, PIF advertiser and PIF publisher use clients hosted by Criteo, so they must not start on this instance.
+   * On local development, to keep things simple the clients are started on the same instance.
+   */
+  if (isRunningOnDeveloperPC) {
+    clientConfigFiles.push(...['configs/pifmarket-client/config.json', 'configs/pifpublisher-client/config.json']);
+  }
+
   const clientNodes: ClientNode[] = await Promise.all(
-    [
-      'configs/pifmarket-client/config.json',
-      'configs/pafmarket-client/config.json',
-      'configs/pofmarket-client/config.json',
-      'configs/pifpublisher-client/config.json',
-      'configs/pafpublisher-client/config.json',
-      'configs/pofpublisher-client/config.json',
-      'configs/portal-client/config.json',
-    ].map((path) => ClientNode.fromConfig(path, s2sOptions))
+    clientConfigFiles.map((path) => ClientNode.fromConfig(path, s2sOptions))
   );
 
   return { websites, cdns, operators, clientNodes };
