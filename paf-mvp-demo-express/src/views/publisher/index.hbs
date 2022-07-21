@@ -145,16 +145,13 @@
                 if (pafObj === undefined) {
                     return;
                 }
-
                 OneKey.queue.push(() => {
                     OneKey.registerTransmissionResponse({
-                        prebidTransactionId: bid.transactionId,
-                        adUnitCode: bid.adUnitCode,
+                        divIdOrAdUnitCode: bid.adUnitCode,
                         contentId: pafObj.contentId
                     }, pafObj.transmission);
                 });
             });
-
             OneKey.queue.push(() => {
                 // PrebidJS calls internally OneKey without the queue
                 pbjs.requestBids({

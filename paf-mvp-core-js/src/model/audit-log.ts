@@ -56,10 +56,9 @@ interface TransactionPath {
  * Find a list a Transaction Result by considering the TransmissionResponse as
  * a tree data-structure and implementing an iterative Depth-First Search.
  */
-const findTransactionPath = (response: TransmissionResponse, contentId: string): TransactionPath | undefined => {
+export const findTransactionPath = (response: TransmissionResponse, contentId: string): TransactionPath | undefined => {
   const stack: TreeTraversalTracker[] = [];
   let current = new TreeTraversalTracker(response);
-
   while (current !== undefined || stack.length > 0) {
     // Go to next leaf
     while (current !== undefined) {

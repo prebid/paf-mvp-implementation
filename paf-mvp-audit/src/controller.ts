@@ -1,5 +1,5 @@
 import { Locale } from './locale';
-import { AuditLog, TransmissionResult } from '@core/model/generated-model';
+import { TransmissionResult } from '@core/model/generated-model';
 import { Log } from '@core/log';
 import { Model } from './model';
 import { View } from './view';
@@ -44,16 +44,17 @@ export class Controller {
     this.element = advert;
     this.log = log;
 
-    // TODO: Replace this with a fetch for the real audit log once available.
-    const auditLog = <AuditLog>JSON.parse(advert.getAttribute('auditLog'));
+    ///const auditLog = <AuditLog>JSON.parse(advert.getAttribute('auditLog'));
+    const auditLog = (<Window>window).OneKey.getAuditLogByDivId(advert.id);
+    if (auditLog !== undefined) {
+      this.model = new Model(auditLog);
+      this.view = new View(advert, locale, log);
+      this.mapFieldsToUI();
+      this.view.display('button');
+      this.bindActions();
 
-    this.model = new Model(auditLog);
-    this.view = new View(advert, locale, log);
-    this.mapFieldsToUI();
-    this.view.display('button');
-    this.bindActions();
-
-    log.Info('Audit registered', advert.id);
+      log.Info('Audit registered', advert.id);
+    }
   }
 
   /**
