@@ -4,7 +4,7 @@
   "main": "src/index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "ts-node -r tsconfig-paths/register ./src/index.ts",
+    "start": "ts-node -r tsconfig-paths/register -r ./opentelemetry/tracing.js ./src/index.ts",
     "generate-examples": "ts-node -r tsconfig-paths/register scripts/generate-examples.ts"
   },
   "repository": {

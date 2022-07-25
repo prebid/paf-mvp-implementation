@@ -32,6 +32,10 @@
   },
   "homepage": "https://github.com/prebid/paf-mvp-implementation#readme",
   "dependencies": {
+    "@opentelemetry/api": "^1.1.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.31.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.30.0",
+    "@opentelemetry/sdk-node": "^0.30.0",
     "@types/body-parser": "^1.19.2",
     "@types/cookie-parser": "^1.4.2",
     "@types/cors": "^2.8.12",

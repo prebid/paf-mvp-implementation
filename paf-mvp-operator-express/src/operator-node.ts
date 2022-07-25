@@ -52,7 +52,8 @@ import { Cookies, toTest3pcCookie, typedCookie } from '@core/cookies';
 import { getTimeStampInSec } from '@core/timestamp';
 import { jsonOperatorEndpoints, redirectEndpoints } from '@core/endpoints';
 import { OperatorError, OperatorErrorType } from '@core/errors';
-
+import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
+const tracer = opentelemetry.trace.getTracer('Operator');
 /**
  * Expiration: now + 3 months
  */
@@ -286,51 +287,58 @@ export class OperatorNode implements Node {
     };
 
     app.expressApp.get(jsonOperatorEndpoints.read, cors(corsOptionsAcceptAll), async (req, res) => {
-      logger.Info(jsonOperatorEndpoints.read);
+      tracer.startActiveSpan('jsonOperatorEndpoints.read', async (span) => {
+        logger.Info(jsonOperatorEndpoints.read);
+        // Attempt to set a cookie (as 3PC), will be useful later if this call fails to get Prebid cookie values
+        setTest3pcCookie(res);
 
-      // Attempt to set a cookie (as 3PC), will be useful later if this call fails to get Prebid cookie values
-      setTest3pcCookie(res);
+        const request = getPafDataFromQueryString<GetIdsPrefsRequest>(req);
 
-      const request = getPafDataFromQueryString<GetIdsPrefsRequest>(req);
-
-      try {
-        const response = await getReadResponse(request, req);
-        res.json(response);
-      } catch (e) {
-        logger.Error(jsonOperatorEndpoints.read, e);
-        // FIXME finer error return
-        const error: OperatorError = {
-          type: OperatorErrorType.UNKNOWN_ERROR,
-          details: '',
-        };
-        res.status(400);
-        res.json(error);
-      }
+        try {
+          const response = await getReadResponse(request, req);
+          res.json(response);
+        } catch (e) {
+          logger.Error(jsonOperatorEndpoints.read, e);
+          // FIXME finer error return
+          const error: OperatorError = {
+            type: OperatorErrorType.UNKNOWN_ERROR,
+            details: '',
+          };
+          res.status(400);
+          res.json(error);
+        }
+        span.end();
+      });
     });
 
     app.expressApp.get(jsonOperatorEndpoints.verify3PC, cors(corsOptionsAcceptAll), (req, res) => {
-      logger.Info(jsonOperatorEndpoints.verify3PC);
-      // Note: no signature verification here
+      tracer.startActiveSpan('jsonOperatorEndpoints.verify3PC', async (span) => {
+        logger.Info(jsonOperatorEndpoints.verify3PC);
+        // Note: no signature verification here
 
-      try {
-        const cookies = req.cookies;
-        const testCookieValue = typedCookie<Test3Pc>(cookies[Cookies.test_3pc]);
+        try {
+          const cookies = req.cookies;
+          const testCookieValue = typedCookie<Test3Pc>(cookies[Cookies.test_3pc]);
 
-        // Clean up
-        removeCookie(req, res, Cookies.test_3pc, { domain: tld });
+          // Clean up
+          removeCookie(req, res, Cookies.test_3pc, { domain: tld });
 
-        const response = get3PCResponseBuilder.buildResponse(testCookieValue);
-        res.json(response);
-      } catch (e) {
-        logger.Error(jsonOperatorEndpoints.verify3PC, e);
-        // FIXME finer error return
-        const error: OperatorError = {
-          type: OperatorErrorType.UNKNOWN_ERROR,
-          details: '',
-        };
-        res.status(400);
-        res.json(error);
-      }
+          const response = get3PCResponseBuilder.buildResponse(testCookieValue);
+          res.json(response);
+        } catch (e) {
+          logger.Error(jsonOperatorEndpoints.verify3PC, e);
+          // FIXME finer error return
+          const error: OperatorError = {
+            type: OperatorErrorType.UNKNOWN_ERROR,
+            details: '',
+          };
+          res.status(400);
+          res.json(error);
+          span.recordException(e);
+          span.setStatus({ code: SpanStatusCode.ERROR });
+        }
+        span.end();
+      });
     });
 
     app.expressApp.post(jsonOperatorEndpoints.write, cors(corsOptionsAcceptAll), async (req, res) => {
@@ -373,40 +381,43 @@ export class OperatorNode implements Node {
     });
 
     app.expressApp.get(jsonOperatorEndpoints.newId, cors(corsOptionsAcceptAll), async (req, res) => {
-      logger.Info(jsonOperatorEndpoints.newId);
-      const request = getPafDataFromQueryString<GetNewIdRequest>(req);
-      const context = { origin: req.header('origin') };
+      tracer.startActiveSpan('jsonOperatorEndpoints.newId', async (span) => {
+        logger.Info(jsonOperatorEndpoints.newId);
+        const request = getPafDataFromQueryString<GetNewIdRequest>(req);
+        const context = { origin: req.header('origin') };
 
-      const sender = request.sender;
+        const sender = request.sender;
 
-      if (!allowedHosts[sender]?.includes(Permission.READ)) {
-        throw `Domain not allowed to read data: ${sender}`;
-      }
-
-      try {
-        if (
-          !(await getNewIdRequestVerifier.verifySignatureAndContent(
-            { request, context },
-            sender, // sender will always be ok
-            operatorHost // but operator needs to be verified
-          ))
-        ) {
-          // TODO [errors] finer error feedback
-          throw 'New Id request verification failed';
+        if (!allowedHosts[sender]?.includes(Permission.READ)) {
+          throw `Domain not allowed to read data: ${sender}`;
         }
 
-        const response = getNewIdResponseBuilder.buildResponse(request.receiver, idBuilder.generateNewId());
-        res.json(response);
-      } catch (e) {
-        logger.Error(jsonOperatorEndpoints.newId, e);
-        // FIXME finer error return
-        const error: OperatorError = {
-          type: OperatorErrorType.UNKNOWN_ERROR,
-          details: '',
-        };
-        res.status(400);
-        res.json(error);
-      }
+        try {
+          if (
+            !(await getNewIdRequestVerifier.verifySignatureAndContent(
+              { request, context },
+              sender, // sender will always be ok
+              operatorHost // but operator needs to be verified
+            ))
+          ) {
+            // TODO [errors] finer error feedback
+            throw 'New Id request verification failed';
+          }
+
+          const response = getNewIdResponseBuilder.buildResponse(request.receiver, idBuilder.generateNewId());
+          res.json(response);
+        } catch (e) {
+          logger.Error(jsonOperatorEndpoints.newId, e);
+          // FIXME finer error return
+          const error: OperatorError = {
+            type: OperatorErrorType.UNKNOWN_ERROR,
+            details: '',
+          };
+          res.status(400);
+          res.json(error);
+        }
+        span.end();
+      });
     });
 
     // *****************************************************************************************************************
@@ -414,104 +425,116 @@ export class OperatorNode implements Node {
     // *****************************************************************************************************************
 
     app.expressApp.get(redirectEndpoints.read, async (req, res) => {
-      logger.Info(redirectEndpoints.read);
-      const request = getPafDataFromQueryString<RedirectGetIdsPrefsRequest>(req);
+      tracer.startActiveSpan('redirectEndpoints.read', async (span) => {
+        logger.Info(redirectEndpoints.read);
+        const request = getPafDataFromQueryString<RedirectGetIdsPrefsRequest>(req);
 
-      if (!request?.returnUrl) {
-        // FIXME more robust error handling: websites should not be broken in this case, do a redirect with empty data
-        const error: OperatorError = {
-          type: OperatorErrorType.INVALID_RETURN_URL,
-          details: '',
-        };
-        res.status(400);
-        res.json(error);
-        return;
-      }
+        if (!request?.returnUrl) {
+          // FIXME more robust error handling: websites should not be broken in this case, do a redirect with empty data
+          const error: OperatorError = {
+            type: OperatorErrorType.INVALID_RETURN_URL,
+            details: '',
+          };
+          res.status(400);
+          res.json(error);
+          return;
+        }
 
-      try {
-        const response = await getReadResponse(request, req);
+        try {
+          const response = await getReadResponse(request, req);
 
-        const redirectResponse = getIdsPrefsResponseBuilder.toRedirectResponse(response, 200);
-        const redirectUrl = getIdsPrefsResponseBuilder.getRedirectUrl(new URL(request?.returnUrl), redirectResponse);
+          const redirectResponse = getIdsPrefsResponseBuilder.toRedirectResponse(response, 200);
+          const redirectUrl = getIdsPrefsResponseBuilder.getRedirectUrl(new URL(request?.returnUrl), redirectResponse);
 
-        httpRedirect(res, redirectUrl.toString());
-      } catch (e) {
-        logger.Error(redirectEndpoints.read, e);
-        // FIXME more robust error handling: websites should not be broken in this case, do a redirect with empty data
-        // FIXME finer error return
-        const error: OperatorError = {
-          type: OperatorErrorType.UNKNOWN_ERROR,
-          details: '',
-        };
-        res.status(400);
-        res.json(error);
-      }
+          httpRedirect(res, redirectUrl.toString());
+        } catch (e) {
+          logger.Error(redirectEndpoints.read, e);
+          // FIXME more robust error handling: websites should not be broken in this case, do a redirect with empty data
+          // FIXME finer error return
+          const error: OperatorError = {
+            type: OperatorErrorType.UNKNOWN_ERROR,
+            details: '',
+          };
+          res.status(400);
+          res.json(error);
+        }
+        span.end();
+      });
     });
 
     app.expressApp.get(redirectEndpoints.write, async (req, res) => {
-      logger.Info(redirectEndpoints.write);
-      const request = getPafDataFromQueryString<RedirectPostIdsPrefsRequest>(req);
+      tracer.startActiveSpan('redirectEndpoints.write', async (span) => {
+        logger.Info(redirectEndpoints.write);
+        const request = getPafDataFromQueryString<RedirectPostIdsPrefsRequest>(req);
 
-      if (!request?.returnUrl) {
-        // FIXME more robust error handling: websites should not be broken in this case, do a redirect with empty data
-        const error: OperatorError = {
-          type: OperatorErrorType.INVALID_RETURN_URL,
-          details: '',
-        };
-        res.status(400);
-        res.json(error);
-        return;
-      }
+        if (!request?.returnUrl) {
+          // FIXME more robust error handling: websites should not be broken in this case, do a redirect with empty data
+          const error: OperatorError = {
+            type: OperatorErrorType.INVALID_RETURN_URL,
+            details: '',
+          };
+          res.status(400);
+          res.json(error);
+          return;
+        }
 
-      try {
-        const response = await getWriteResponse(request, req, res);
+        try {
+          const response = await getWriteResponse(request, req, res);
 
-        const redirectResponse = postIdsPrefsResponseBuilder.toRedirectResponse(response, 200);
-        const redirectUrl = postIdsPrefsResponseBuilder.getRedirectUrl(new URL(request.returnUrl), redirectResponse);
+          const redirectResponse = postIdsPrefsResponseBuilder.toRedirectResponse(response, 200);
+          const redirectUrl = postIdsPrefsResponseBuilder.getRedirectUrl(new URL(request.returnUrl), redirectResponse);
 
-        httpRedirect(res, redirectUrl.toString());
-      } catch (e) {
-        logger.Error(redirectEndpoints.write, e);
-        // FIXME more robust error handling: websites should not be broken in this case, do a redirect with empty data
-        // FIXME finer error return
-        const error: OperatorError = {
-          type: OperatorErrorType.UNKNOWN_ERROR,
-          details: '',
-        };
-        res.status(400);
-        res.json(error);
-      }
+          httpRedirect(res, redirectUrl.toString());
+        } catch (e) {
+          logger.Error(redirectEndpoints.write, e);
+          // FIXME more robust error handling: websites should not be broken in this case, do a redirect with empty data
+          // FIXME finer error return
+          const error: OperatorError = {
+            type: OperatorErrorType.UNKNOWN_ERROR,
+            details: '',
+          };
+          res.status(400);
+          res.json(error);
+        }
+        span.end();
+      });
     });
 
     app.expressApp.get(redirectEndpoints.delete, async (req, res) => {
-      logger.Info(redirectEndpoints.delete);
-      const request = getPafDataFromQueryString<RedirectDeleteIdsPrefsRequest>(req);
-      if (!request?.returnUrl) {
-        // FIXME more robust error handling: websites should not be broken in this case, do a redirect with empty data
-        const error: OperatorError = {
-          type: OperatorErrorType.INVALID_RETURN_URL,
-          details: '',
-        };
-        res.status(400);
-        res.json(error);
-        return;
-      }
-      try {
-        const response = await getDeleteResponse(request, req, res);
-        const redirectResponse = deleteIdsPrefsResponseBuilder.toRedirectResponse(response, 200);
-        const redirectUrl = deleteIdsPrefsResponseBuilder.getRedirectUrl(new URL(request.returnUrl), redirectResponse);
-        httpRedirect(res, redirectUrl.toString());
-      } catch (e) {
-        logger.Error(redirectEndpoints.delete, e);
-        // FIXME more robust error handling: websites should not be broken in this case, do a redirect with empty data
-        // FIXME finer error return
-        const error: OperatorError = {
-          type: OperatorErrorType.UNKNOWN_ERROR,
-          details: '',
-        };
-        res.status(400);
-        res.json(error);
-      }
+      tracer.startActiveSpan('redirectEndpoints.delete', async (span) => {
+        logger.Info(redirectEndpoints.delete);
+        const request = getPafDataFromQueryString<RedirectDeleteIdsPrefsRequest>(req);
+        if (!request?.returnUrl) {
+          // FIXME more robust error handling: websites should not be broken in this case, do a redirect with empty data
+          const error: OperatorError = {
+            type: OperatorErrorType.INVALID_RETURN_URL,
+            details: '',
+          };
+          res.status(400);
+          res.json(error);
+          return;
+        }
+        try {
+          const response = await getDeleteResponse(request, req, res);
+          const redirectResponse = deleteIdsPrefsResponseBuilder.toRedirectResponse(response, 200);
+          const redirectUrl = deleteIdsPrefsResponseBuilder.getRedirectUrl(
+            new URL(request.returnUrl),
+            redirectResponse
+          );
+          httpRedirect(res, redirectUrl.toString());
+        } catch (e) {
+          logger.Error(redirectEndpoints.delete, e);
+          // FIXME more robust error handling: websites should not be broken in this case, do a redirect with empty data
+          // FIXME finer error return
+          const error: OperatorError = {
+            type: OperatorErrorType.UNKNOWN_ERROR,
+            details: '',
+          };
+          res.status(400);
+          res.json(error);
+        }
+        span.end();
+      });
     });
   }
 
